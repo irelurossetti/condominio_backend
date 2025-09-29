@@ -1,8 +1,9 @@
 # condominio_backend/core/views.py
 
 from django.contrib.auth import authenticate, get_user_model
-from django.db.models import Sum
+from django.db.models import Sum, Q, Value, F,  Count, DecimalField
 from django.conf import settings
+from django.db.models.functions import Coalesce
 from rest_framework import viewsets, permissions, filters, status, serializers # <--- CORRECCIÓN AQUÍ
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,6 +12,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied
 import mercadopago
+from django.db import models # <-- Asegúrate que esta línea exista
+
 from django.utils import timezone # <--- ESTA LÍNEA ES LA CORRECCIÓN
 
 from .models import (
@@ -45,10 +48,10 @@ class LoginView(APIView):
         user_lookup = {"email__iexact": identifier} if "@" in identifier else {"username__iexact": identifier}
         user_obj = User.objects.filter(**user_lookup).first()
         if not user_obj:
-            return Response({"detail": "Credenciales inválidas"}, status=status.HTTP_401)
+            return Response({"detail": "Credenciales inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
         user = authenticate(request, username=user_obj.username, password=password)
         if not user:
-            return Response({"detail": "Credenciales inválidas"}, status=status.HTTP_401)
+            return Response({"detail": "Credenciales inválidas"}, status=status.HTTP_401_UNAUTHORIZED)
         ActivityLog.objects.create(user=user, action="USER_LOGIN_SUCCESS")
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
@@ -245,12 +248,77 @@ class DashboardStatsView(APIView):
         })
 
 
+# condominio_backend/core/views.py
+
+# condominio_backend/core/views.py
+
 class FinanceReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
-        return Response({})
+        from_period = request.query_params.get('from')
+        to_period = request.query_params.get('to')
+        owner_id = request.query_params.get('owner')
 
+        queryset = Fee.objects.select_related('expense_type')
 
+        if from_period:
+            queryset = queryset.filter(period__gte=from_period)
+        if to_period:
+            queryset = queryset.filter(period__lte=to_period)
+        if owner_id:
+            queryset = queryset.filter(unit__owner_id=owner_id)
+
+        # 1. Resumen General
+        aggregates = queryset.aggregate(
+            issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()), # <-- CAMBIO
+            paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField()) # <-- CAMBIO
+        )
+        overall_issued = aggregates['issued']
+        overall_paid = aggregates['paid']
+        overall_outstanding = overall_issued - overall_paid
+
+        # 2. Desglose por Tipo
+        by_type = list(queryset.values('expense_type__name')
+            .annotate(
+                type=F('expense_type__name'),
+                count=Count('id'),
+                issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()), # <-- CAMBIO
+                paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField()) # <-- CAMBIO
+            )
+            .annotate(outstanding=F('issued') - F('paid'))
+            .values('type', 'count', 'issued', 'paid', 'outstanding')
+            .order_by('-issued')
+        )
+        
+        # 3. Desglose por Período
+        by_period = list(queryset.values('period')
+            .annotate(
+                issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()), # <-- CAMBIO
+                paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField()) # <-- CAMBIO
+            )
+            .values('period', 'issued', 'paid')
+            .order_by('period')
+        )
+
+        data = {
+            "overall": {
+                "issued": float(overall_issued or 0),
+                "paid": float(overall_paid or 0),
+                "outstanding": float(overall_outstanding or 0),
+            },
+            "by_type": [
+                {**item, 'issued': float(item['issued']), 'paid': float(item['paid']), 'outstanding': float(item['outstanding'])}
+                for item in by_type
+            ],
+            "by_period": [
+                {**item, 'issued': float(item['issued']), 'paid': float(item['paid'])}
+                for item in by_period
+            ],
+        }
+        
+        return Response(data)
+    
 class FeePaymentPreferenceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

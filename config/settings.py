@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 import dj_database_url
 #esto es para ajustes finos, reincio de semana y tiempo
 from datetime import timedelta
-
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -106,14 +106,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # settings.py
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'coondominio',
-        'USER': 'postgres',
-        'PASSWORD': 'JoseJorge3',
-        'HOST': 'localhost', # o '127.0.0.1'
-        'PORT': '5432',
-    }
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR/'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
 
 
