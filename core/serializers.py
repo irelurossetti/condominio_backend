@@ -1,13 +1,14 @@
+# condominio_backend/core/serializers.py
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.utils import timezone
 from django.db.models import Q
 from django.db.models import Sum
-from django.db import transaction # 👈 Asegúrate de que este import esté al principio del archivo
+from django.db import transaction
 from .models import (
     Profile, Unit, ExpenseType, Fee, Payment, Notice,
     CommonArea, Reservation, MaintenanceRequest, ActivityLog, MaintenanceRequestComment,
-    Vehicle, Pet, FamilyMember, NoticeCategory, Notification, MaintenanceRequestAttachment  # <-- ¡Añadido aquí!
+    Vehicle, Pet, FamilyMember, NoticeCategory, Notification, MaintenanceRequestAttachment
 )
 User = get_user_model()
 
@@ -26,7 +27,7 @@ class FamilyMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = FamilyMember
         fields = '__all__'
-# ---------------------------------------------
+
 # --- Serializers Principales ---
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,15 +39,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = ["full_name", "phone", "role"]
 
-class MeSerializer(serializers.Serializer):
-    """Solo para componer la respuesta de /api/me/"""
-    id = serializers.IntegerField()
-    username = serializers.CharField()
-    email = serializers.EmailField(allow_blank=True)
-    first_name = serializers.CharField(allow_blank=True)
-    last_name = serializers.CharField(allow_blank=True)
-    profile = ProfileSerializer(allow_null=True)
-
 class UserWithProfileSerializer(UserSerializer):
     profile = ProfileSerializer(read_only=True)
     vehicles = VehicleSerializer(many=True, read_only=True)
@@ -56,8 +48,6 @@ class UserWithProfileSerializer(UserSerializer):
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + ["profile", "vehicles", "pets", "family_members"]
 
-
-# 👇 REEMPLAZA TODA TU CLASE AdminUserWriteSerializer CON ESTO
 class AdminUserWriteSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -67,10 +57,7 @@ class AdminUserWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "email", "password", "full_name", "phone", "role", "is_active"]
-        extra_kwargs = {
-            'username': {'required': False},
-            'email': {'required': False},
-        }
+        extra_kwargs = { 'username': {'required': False}, 'email': {'required': False} }
 
     @transaction.atomic
     def create(self, validated_data):
@@ -86,7 +73,6 @@ class AdminUserWriteSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        # Actualiza el modelo User
         instance.username = validated_data.get('username', instance.username)
         instance.email = validated_data.get('email', instance.email)
         instance.is_active = validated_data.get('is_active', instance.is_active)
@@ -97,7 +83,6 @@ class AdminUserWriteSerializer(serializers.ModelSerializer):
         
         instance.save()
 
-        # Actualiza o crea el modelo Profile
         profile_instance, _ = Profile.objects.get_or_create(user=instance)
         profile_instance.full_name = validated_data.get('full_name', profile_instance.full_name)
         profile_instance.phone = validated_data.get('phone', profile_instance.phone)
@@ -106,29 +91,12 @@ class AdminUserWriteSerializer(serializers.ModelSerializer):
 
         return instance
 
-class UnitSerializer(serializers.ModelSerializer):
-    owner_username = serializers.SerializerMethodField(read_only=True)
-
-    class Meta:
-        model = Unit
-        fields = ["id", "code", "tower", "number", "owner", "owner_username"]
-        read_only_fields = ["id"]
-
-    def get_owner_username(self, obj):
-        return getattr(obj.owner, "username", None)
-    
-class ExpenseTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ExpenseType
-        fields = ["id", "name", "amount_default", "active"]
-
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = ["id", "amount", "paid_at", "method", "note"]
 
 class FeeSerializer(serializers.ModelSerializer):
-    # Campos de solo lectura para mostrar información extra
     unit_code = serializers.CharField(source="unit.code", read_only=True)
     owner_username = serializers.CharField(source="unit.owner.username", read_only=True)
     expense_type_name = serializers.CharField(source="expense_type.name", read_only=True)
@@ -137,30 +105,63 @@ class FeeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Fee
-        # Lista de campos que se van a usar. 'unit' y 'expense_type' esperan un ID al crear.
-        fields = [
-            "id",
-            "unit", 
-            "unit_code",
-            "owner_username",
-            "expense_type",
-            "expense_type_name",
-            "period",
-            "amount",
-            "status",
-            "issued_at",
-            "due_date",
-            "payments",
-            "total_paid",
-        ]
-        # Campos que el backend debe calcular y el usuario no debe poder enviar
+        fields = [ "id", "unit", "unit_code", "owner_username", "expense_type", "expense_type_name", "period", "amount", "status", "issued_at", "due_date", "payments", "total_paid" ]
         read_only_fields = ["id", "status", "issued_at"]
 
     def get_total_paid(self, obj):
-        """Calcula el total pagado para una cuota."""
         return obj.payments.aggregate(total=Sum('amount'))['total'] or 0
 
-# 👇 AÑADE ESTE NUEVO SERIALIZADOR
+class MaintenanceRequestCommentSerializer(serializers.ModelSerializer):
+    user_username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = MaintenanceRequestComment
+        fields = ['id', 'request', 'user', 'user_username', 'body', 'created_at']
+        read_only_fields = ['user', 'request']
+
+class MaintenanceRequestAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MaintenanceRequestAttachment
+        fields = ['id', 'file', 'uploaded_at']
+
+class MaintenanceRequestSerializer(serializers.ModelSerializer):
+    unit_code = serializers.CharField(source="unit.code", read_only=True)
+    reported_by_username = serializers.CharField(source="reported_by.username", read_only=True)
+    assigned_to_username = serializers.CharField(source="assigned_to.username", read_only=True)
+    completed_by_username = serializers.CharField(source="completed_by.username", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    priority_display = serializers.CharField(source="get_priority_display", read_only=True)
+    comments = MaintenanceRequestCommentSerializer(many=True, read_only=True)
+    attachments = MaintenanceRequestAttachmentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = MaintenanceRequest
+        fields = '__all__'
+        read_only_fields = ['reported_by']
+
+# --- ESTAS SON LAS CLASES IMPORTANTES PARA LA VISTA DE UNIDADES ---
+class UnitSerializer(serializers.ModelSerializer):
+    owner_username = serializers.CharField(source="owner.username", read_only=True)
+    owner_full_name = serializers.CharField(source="owner.profile.full_name", read_only=True)
+
+    class Meta:
+        model = Unit
+        fields = ["id", "code", "tower", "number", "owner", "owner_username", "owner_full_name"]
+        read_only_fields = ["id"]
+
+class UnitDetailSerializer(UnitSerializer):
+    owner = UserWithProfileSerializer(read_only=True)
+    fees = FeeSerializer(many=True, read_only=True)
+    maintenance_requests = MaintenanceRequestSerializer(many=True, read_only=True)
+
+    class Meta(UnitSerializer.Meta):
+        fields = UnitSerializer.Meta.fields + ["owner", "fees", "maintenance_requests"]
+
+class ExpenseTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseType
+        fields = ["id", "name", "amount_default", "active"]
+
 class NoticeCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = NoticeCategory
@@ -171,20 +172,14 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ['id', 'message', 'is_read', 'created_at', 'link']
 
-# 👇 MODIFICA EL NoticeSerializer
 class NoticeSerializer(serializers.ModelSerializer):
-    # ... (el resto de tu NoticeSerializer se queda igual)
     created_by_username = serializers.CharField(source="created_by.username", read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True, allow_null=True)
     category_color = serializers.CharField(source="category.color", read_only=True, allow_null=True)
 
     class Meta:
         model = Notice
-        # 👇 Añade 'category', 'category_name' y 'category_color' a la lista
-        fields = [
-            "id", "title", "body", "publish_date", "created_by", "created_by_username",
-            "category", "category_name", "category_color"
-        ]
+        fields = [ "id", "title", "body", "publish_date", "created_by", "created_by_username", "category", "category_name", "category_color" ]
         read_only_fields = ["id", "created_by", "created_by_username"]
 
 class CommonAreaSerializer(serializers.ModelSerializer):
@@ -192,17 +187,13 @@ class CommonAreaSerializer(serializers.ModelSerializer):
         model = CommonArea
         fields = ["id", "name", "description", "capacity", "is_active"]
 
-# 👇 REEMPLAZA ESTA CLASE COMPLETA
 class ReservationSerializer(serializers.ModelSerializer):
     area_name = serializers.CharField(source="area.name", read_only=True)
     user_username = serializers.CharField(source="user.username", read_only=True)
 
     class Meta:
         model = Reservation
-        fields = [
-            "id", "area", "area_name", "user", "user_username",
-            "start_time", "end_time", "notes", "created_at"
-        ]
+        fields = [ "id", "area", "area_name", "user", "user_username", "start_time", "end_time", "notes", "created_at" ]
         read_only_fields = ["user", "created_at"]
 
     def validate(self, data):
@@ -219,14 +210,13 @@ class ReservationSerializer(serializers.ModelSerializer):
         if start_time < timezone.now():
             raise serializers.ValidationError("No se pueden crear o modificar reservas en el pasado.")
 
-        # Lógica para detectar solapamiento
         conflicting = Reservation.objects.filter(
             area=area,
             start_time__lt=end_time,
             end_time__gt=start_time
         )
         
-        if self.instance: # Si es una actualización, excluimos la propia reserva
+        if self.instance:
             conflicting = conflicting.exclude(pk=self.instance.pk)
 
         if conflicting.exists():
@@ -241,36 +231,3 @@ class ActivityLogSerializer(serializers.ModelSerializer):
         model = ActivityLog
         fields = ["id", "user", "user_username", "action", "timestamp", "details"]
         read_only_fields = ["id", "user", "user_username", "timestamp", "action", "details"]
-
-# Mueve la definicion del serializador de comentarios antes de que se use
-class MaintenanceRequestCommentSerializer(serializers.ModelSerializer):
-    user_username = serializers.CharField(source='user.username', read_only=True)
-
-    class Meta:
-        model = MaintenanceRequestComment
-        fields = ['id', 'request', 'user', 'user_username', 'body', 'created_at']
-        read_only_fields = ['user', 'request']
-
-# 👇 AÑADE ESTA NUEVA CLASE
-class MaintenanceRequestAttachmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MaintenanceRequestAttachment
-        fields = ['id', 'file', 'uploaded_at']
-
-class MaintenanceRequestSerializer(serializers.ModelSerializer):
-    unit_code = serializers.CharField(source="unit.code", read_only=True)
-    reported_by_username = serializers.CharField(source="reported_by.username", read_only=True)
-    assigned_to_username = serializers.CharField(source="assigned_to.username", read_only=True)
-    completed_by_username = serializers.CharField(source="completed_by.username", read_only=True)
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
-    priority_display = serializers.CharField(source="get_priority_display", read_only=True)
-    comments = MaintenanceRequestCommentSerializer(many=True, read_only=True)
-    
-    # 👇 AÑADE ESTA LÍNEA para mostrar los archivos adjuntos
-    attachments = MaintenanceRequestAttachmentSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = MaintenanceRequest
-        fields = '__all__' # fields = '__all__' ya incluye el nuevo campo 'attachments'
-        read_only_fields = ['reported_by']
-      

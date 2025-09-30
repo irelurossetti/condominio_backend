@@ -1,10 +1,10 @@
 # condominio_backend/core/views.py
 
 from django.contrib.auth import authenticate, get_user_model
-from django.db.models import Sum, Q, Value, F,  Count, DecimalField
+from django.db.models import Sum, Q, Value, F, Count, DecimalField
 from django.conf import settings
 from django.db.models.functions import Coalesce
-from rest_framework import viewsets, permissions, filters, status, serializers # <--- CORRECCIÓN AQUÍ
+from rest_framework import viewsets, permissions, filters, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -12,9 +12,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied
 import mercadopago
-from django.db import models # <-- Asegúrate que esta línea exista
-
-from django.utils import timezone # <--- ESTA LÍNEA ES LA CORRECCIÓN
+from django.db import models
+from django.utils import timezone
 
 from .models import (
     ActivityLog, CommonArea, ExpenseType, FamilyMember, Fee, MaintenanceRequest,
@@ -28,7 +27,7 @@ from .serializers import (
     NoticeCategorySerializer, NoticeSerializer,
     NotificationSerializer, MaintenanceRequestAttachmentSerializer,
     PaymentSerializer, PetSerializer, ProfileSerializer, ReservationSerializer,
-    UnitSerializer, UserWithProfileSerializer, VehicleSerializer
+    UnitSerializer, UnitDetailSerializer, UserWithProfileSerializer, VehicleSerializer
 )
 from .permissions import IsAdmin, IsOwnerOrAdmin
 from .services.fees import register_payment
@@ -91,9 +90,16 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class UnitViewSet(viewsets.ModelViewSet):
-    queryset = Unit.objects.select_related("owner").all().order_by("id")
-    serializer_class = UnitSerializer
+    queryset = Unit.objects.select_related("owner", "owner__profile").all().order_by("code")
     permission_classes = [IsAdmin]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['code', 'tower', 'number', 'owner__username', 'owner__profile__full_name']
+    ordering_fields = ['code', 'tower', 'number', 'owner__username']
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return UnitDetailSerializer
+        return UnitSerializer
 
 
 class ExpenseTypeViewSet(viewsets.ModelViewSet):
@@ -110,8 +116,10 @@ class FeeViewSet(viewsets.ModelViewSet):
     queryset = Fee.objects.select_related("unit", "expense_type", "unit__owner").all()
     serializer_class = FeeSerializer
     ordering = ["-issued_at"]
+
     def get_permissions(self):
         return [permissions.IsAuthenticated()] if self.action in ("list", "retrieve") else [IsAdmin()]
+    
     def get_queryset(self):
         qs = super().get_queryset()
         if self.request.query_params.get("mine") == "1" and self.request.user.is_authenticated:
@@ -120,6 +128,24 @@ class FeeViewSet(viewsets.ModelViewSet):
             qs = qs.filter(period=period)
         return qs
 
+    # --- 👇 AÑADE ESTA NUEVA FUNCIÓN AQUÍ ---
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def pay(self, request, pk=None):
+        try:
+            fee = self.get_object()
+            amount = request.data.get('amount')
+            method = request.data.get('method', 'manual')
+            note = request.data.get('note', 'Pago registrado por administrador.')
+
+            if not amount:
+                return Response({"detail": "El monto es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Usamos el servicio para registrar el pago
+            result = register_payment(fee_id=fee.id, amount=float(amount), method=method, note=note)
+            
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class NoticeCategoryViewSet(viewsets.ModelViewSet):
     queryset = NoticeCategory.objects.all()
@@ -248,10 +274,6 @@ class DashboardStatsView(APIView):
         })
 
 
-# condominio_backend/core/views.py
-
-# condominio_backend/core/views.py
-
 class FinanceReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -269,33 +291,30 @@ class FinanceReportView(APIView):
         if owner_id:
             queryset = queryset.filter(unit__owner_id=owner_id)
 
-        # 1. Resumen General
         aggregates = queryset.aggregate(
-            issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()), # <-- CAMBIO
-            paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField()) # <-- CAMBIO
+            issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()),
+            paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField())
         )
         overall_issued = aggregates['issued']
         overall_paid = aggregates['paid']
         overall_outstanding = overall_issued - overall_paid
 
-        # 2. Desglose por Tipo
         by_type = list(queryset.values('expense_type__name')
             .annotate(
                 type=F('expense_type__name'),
                 count=Count('id'),
-                issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()), # <-- CAMBIO
-                paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField()) # <-- CAMBIO
+                issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()),
+                paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField())
             )
             .annotate(outstanding=F('issued') - F('paid'))
             .values('type', 'count', 'issued', 'paid', 'outstanding')
             .order_by('-issued')
         )
         
-        # 3. Desglose por Período
         by_period = list(queryset.values('period')
             .annotate(
-                issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()), # <-- CAMBIO
-                paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField()) # <-- CAMBIO
+                issued=Coalesce(Sum('amount'), Value(0), output_field=DecimalField()),
+                paid=Coalesce(Sum('amount', filter=Q(status='PAID')), Value(0), output_field=DecimalField())
             )
             .values('period', 'issued', 'paid')
             .order_by('period')
@@ -324,7 +343,6 @@ class FeePaymentPreferenceView(APIView):
 
     def post(self, request, fee_id):
         try:
-            # Esta validación se mantiene igual
             fee_lookup = {'pk': fee_id}
             if not (hasattr(request.user, 'profile') and request.user.profile.role == 'ADMIN'):
                 fee_lookup['unit__owner'] = request.user
@@ -332,11 +350,7 @@ class FeePaymentPreferenceView(APIView):
         except Fee.DoesNotExist:
             return Response({"detail": "Cuota no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
-        # --- SIMULACIÓN PARA DEMO (CON QR VISIBLE) ---
-        
         fake_link = f"https://www.mercadopago.com.ar/pagar/con/qr/{fee_id}"
-
-        # 👇 Este es un QR genérico que apunta a google.com. ¡Perfecto para la demo!
         placeholder_qr_base64 = 'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAABbklEQVR4nO2WsQ3DMAxEFXqBJRgQ3QWLsAwLMEaowGBLYIZgCf5/lW6ECIZ/uW/yvB5k3zJ2lO/ncsP5P+H8IeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J8Q/hPCf0L4Twh/CeE/IfwnhP+E8J/s38A2gUzC8oVoRBAAAAAElFTkSuQmCC'
         
         mock_response = {
