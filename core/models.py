@@ -1,5 +1,10 @@
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.fields import DateTimeRangeField
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields.ranges import RangeOperators
+from django.contrib.postgres.indexes import GistIndex
+from django.db.models import Q
 from django.utils import timezone
 
 User = settings.AUTH_USER_MODEL
@@ -72,7 +77,26 @@ class CommonArea(models.Model):
     description = models.TextField(blank=True)
     capacity = models.PositiveIntegerField(default=10)
     is_active = models.BooleanField(default=True)
+    slot_minutes = models.PositiveSmallIntegerField(default=60)
+    open_time  = models.TimeField(null=True, blank=True)
+    close_time = models.TimeField(null=True, blank=True)
+    max_days_in_advance = models.PositiveSmallIntegerField(default=30)
+    max_duration_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    max_reservations_per_unit_per_day = models.PositiveSmallIntegerField(null=True, blank=True)
+    show_who_booked = models.BooleanField(default=True)
     def __str__(self): return self.name
+
+class AmenityClosure(models.Model):
+    amenity = models.ForeignKey(CommonArea, on_delete=models.CASCADE, related_name='closures')
+    period  = DateTimeRangeField()  # (inicio, fin) tz-aware
+    reason  = models.CharField(max_length=120, blank=True)
+
+
+class ReservationStatus(models.TextChoices):
+    PENDING   = "pending",   "Pendiente"
+    CONFIRMED = "confirmed", "Confirmada"
+    CANCELLED = "cancelled", "Cancelada"
+    REJECTED  = "rejected",  "Rechazada"
 
 class Reservation(models.Model):
     area = models.ForeignKey(CommonArea, on_delete=models.CASCADE, related_name="reservations")
@@ -81,7 +105,10 @@ class Reservation(models.Model):
     end_time = models.DateTimeField()
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    def __str__(self): return f"{self.area.name} - {self.user.username} ({self.start_time.strftime('%Y-%m-%d %H:%M')})"
+
+    def __str__(self):
+        return f"{self.area.name} - {self.user.username} ({self.start_time:%Y-%m-%d %H:%M})"
+
 
 class MaintenanceRequest(models.Model):
     STATUS_CHOICES = [("PENDING", "Pendiente"), ("IN_PROGRESS", "En Progreso"), ("COMPLETED", "Completado")]

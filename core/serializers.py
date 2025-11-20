@@ -1,12 +1,14 @@
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.fields import DateTimeRangeField
+#from psycopg2.extras import DateTimeTZRange
 from rest_framework import serializers
 from django.utils import timezone
 from django.db.models import Q
 from django.db.models import Sum
 from django.db import transaction # 👈 Asegúrate de que este import esté al principio del archivo
 from .models import (
-    Profile, Unit, ExpenseType, Fee, Payment, Notice,
-    CommonArea, Reservation, MaintenanceRequest, ActivityLog, MaintenanceRequestComment,
+    Profile, Unit, ExpenseType, Fee, Payment, Notice, Reservation, CommonArea,
+    MaintenanceRequest, ActivityLog, MaintenanceRequestComment,
     Vehicle, Pet, FamilyMember, NoticeCategory, Notification, MaintenanceRequestAttachment  # <-- ¡Añadido aquí!
 )
 User = get_user_model()
@@ -192,47 +194,68 @@ class CommonAreaSerializer(serializers.ModelSerializer):
         model = CommonArea
         fields = ["id", "name", "description", "capacity", "is_active"]
 
-# 👇 REEMPLAZA ESTA CLASE COMPLETA
 class ReservationSerializer(serializers.ModelSerializer):
-    area_name = serializers.CharField(source="area.name", read_only=True)
-    user_username = serializers.CharField(source="user.username", read_only=True)
+    area_name = serializers.CharField(source='area.name', read_only=True)
+    user_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Reservation
         fields = [
-            "id", "area", "area_name", "user", "user_username",
-            "start_time", "end_time", "notes", "created_at"
+            'id',
+            'area', 'area_name',
+            'user', 'user_name',
+            'start_time', 'end_time',
+            'notes',
+            'created_at',
         ]
-        read_only_fields = ["user", "created_at"]
+        read_only_fields = ['id', 'user', 'area_name', 'user_name', 'created_at']
 
-    def validate(self, data):
-        start_time = data.get('start_time', getattr(self.instance, 'start_time', None))
-        end_time = data.get('end_time', getattr(self.instance, 'end_time', None))
-        area = data.get('area', getattr(self.instance, 'area', None))
+    def get_user_name(self, obj):
+        full = obj.user.get_full_name()
+        return full or obj.user.username
 
-        if not all([start_time, end_time, area]):
-            return data
+    def validate(self, attrs):
+        start = attrs.get('start_time')
+        end = attrs.get('end_time')
+        if start and end and end <= start:
+            raise serializers.ValidationError("La fecha/hora de fin debe ser mayor a la de inicio.")
+        return attrs
 
-        if start_time >= end_time:
-            raise serializers.ValidationError("La hora de finalización debe ser posterior a la de inicio.")
-        
-        if start_time < timezone.now():
-            raise serializers.ValidationError("No se pueden crear o modificar reservas en el pasado.")
+    def create(self, validated_data):
+        # compat: amenity -> area
+        amenity = validated_data.pop('amenity', None)
+        if amenity is not None:
+            validated_data['area'] = amenity
 
-        # Lógica para detectar solapamiento
-        conflicting = Reservation.objects.filter(
-            area=area,
-            start_time__lt=end_time,
-            end_time__gt=start_time
-        )
-        
-        if self.instance: # Si es una actualización, excluimos la propia reserva
-            conflicting = conflicting.exclude(pk=self.instance.pk)
+        # mapear start/end -> start_datetime/end_datetime
+        start = validated_data.pop('start')
+        end   = validated_data.pop('end')
+        validated_data['start_datetime'] = start
+        validated_data['end_datetime']   = end
 
-        if conflicting.exists():
-            raise serializers.ValidationError("Este horario ya está ocupado. Por favor, elige otro.")
-            
-        return data
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        amenity = validated_data.pop('amenity', None)
+        if amenity is not None:
+            validated_data['area'] = amenity
+
+        start = validated_data.pop('start', None)
+        end   = validated_data.pop('end', None)
+        if start is not None:
+            validated_data['start_datetime'] = start
+        if end is not None:
+            validated_data['end_datetime'] = end
+
+        return super().update(instance, validated_data)
+
+class SlotSerializer(serializers.Serializer):
+    start = serializers.DateTimeField()
+    end   = serializers.DateTimeField()
+    status = serializers.ChoiceField(choices=['free','booked'])
+    reservation_id = serializers.IntegerField(required=False)
+    resident = serializers.CharField(required=False)
+    unit = serializers.CharField(required=False)
 
 class ActivityLogSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source="user.username", read_only=True)

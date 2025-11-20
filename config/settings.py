@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("SECRET_KEY","y3ot%33odk7)q7wv4a6w^#hcnxb419^6#yzotd4uxh9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "0") == "1"
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".onrender.com"]
 
 
 # Application definition
@@ -72,6 +72,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # << debe ir ARRIBA de CommonMiddleware
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Para servir archivos estáticos
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -103,18 +104,23 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# settings.py
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'coondominio',
-        'USER': 'postgres',
-        'PASSWORD': 'JoseJorge3',
-        'HOST': 'localhost', # o '127.0.0.1'
-        'PORT': '5432',
+# Usar DATABASE_URL si está disponible (producción), sino usar PostgreSQL local
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    DATABASES = {
+        'default': dj_database_url.parse(database_url, conn_max_age=600)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'coondominio',
+            'USER': 'postgres',
+            'PASSWORD': 'JoseJorge3',
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
 
 
 # Password validation
@@ -151,7 +157,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -164,10 +172,22 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 
+# En producción, añade tu dominio de frontend de Render
+if not DEBUG:
+    frontend_url = os.getenv("FRONTEND_URL")
+    if frontend_url:
+        CORS_ALLOWED_ORIGINS.append(frontend_url)
+
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5173",
 ]
+
+# En producción, añade tus dominios de Render
+if not DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend([
+        "https://*.onrender.com",
+    ])
 
 # Si vas a mandar cookies/sesiones desde el frontend:
 # CORS_ALLOW_CREDENTIALS = True
