@@ -1,0 +1,166 @@
+/* src/pages/login.css */
+/* Ocupa toda la ventana y centra el contenido */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+* { box-sizing: border-box; }
+
+
+.lmw-screen{
+  position: fixed;     /* <-- clave */
+  inset: 0;            /* top:0 right:0 bottom:0 left:0 */
+  display: grid;
+  place-items: center; /* centra vertical y horizontal */
+  padding: 24px;
+  overflow: auto;      /* por si el card no entra en móviles */
+  /* deja tu fondo/gradientes aquí; si usas ::before/::after,
+     ponlos con position:absolute y z-index menor que el card */
+}
+
+:root{
+  /* Paleta clara */
+  --bg: #ffffff;
+  --panel: #c7ffce;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --soft: #f9fafb;
+
+  --primary: #22c55e;      /* verde */
+  --primary-600: #16a34a;
+  --ring: rgba(34,197,94,.25);
+
+  --radius-lg: 20px;
+  --radius-md: 12px;
+
+  --shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+/* Fuerza modo claro y fondo claro, sobreescribiendo el CSS base de Vite */
+html, body, #root { height: 100%; }
+:root { color-scheme: light; }            /* Evita el tema oscuro automático */
+body{
+  margin: 0;
+  background: radial-gradient(1000px 600px at 15% 10%, #e9fce9 0%, transparent 35%),
+              radial-gradient(800px 500px at 85% 90%, #eaf2ff 0%, transparent 30%),
+              var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji','Segoe UI Emoji', 'Segoe UI Symbol';
+}
+/* ——— Contenedor centrado ——— */
+.lmw-screen{
+  width: 100%;
+  min-height: 100vh;   /* fallback */
+  min-height: 100svh;  /* corrige barras/ios */
+  min-height: 100dvh;  /* modernos */
+  display: grid;
+  place-items: center;  /* ⭐ centra vertical y horizontal */
+  padding: 24px;        /* no afecta el centrado */
+}
+
+
+/* Tarjeta */
+.lmw-container{
+  width: min(480px, 92vw);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.12);
+  padding: 28px;
+  position: relative;
+  z-index: 1; /* por si usas blobs con ::before/::after */
+}
+
+/* Logo */
+.lmw-logo{
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #a7f3d0, #86efac);
+  display: grid;
+  place-items: center;
+  margin: 4px auto 16px;
+  box-shadow: 0 10px 18px rgba(34,197,94,.18);
+}
+
+/* Títulos */
+.lmw-title{
+  margin: 0;
+  text-align: center;
+  font-size: clamp(28px, 4.2vw, 38px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.lmw-subtitle{
+  margin: 8px 0 22px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Formulario */
+.lmw-form{ display: grid; gap: 14px; }
+
+/* Input con icono */
+.lmw-input{
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  background: var(--soft);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.lmw-icon{
+  display: grid; place-items: center;
+  color: var(--primary-600);
+}
+.lmw-input input{
+  border: 0; outline: 0;
+  background: transparent;
+  padding: 12px 14px;
+  font-size: 16px;
+  color: var(--text);
+}
+.lmw-input:focus-within{
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+/* Botón */
+.lmw-submit{
+  margin-top: 6px;
+  appearance: none;
+  border: 0;
+  width: 100%;
+  border-radius: 14px;
+  padding: 13px 16px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  background: linear-gradient(180deg, var(--primary), var(--primary-600));
+  box-shadow: 0 10px 16px rgba(34,197,94,.25);
+  cursor: pointer;
+  transition: transform .06s ease, filter .15s ease;
+}
+.lmw-submit:hover{ filter: brightness(1.04); }
+.lmw-submit:active{ transform: translateY(1px); }
+.lmw-submit:disabled{
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+/* Link */
+.lmw-link{
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 14px;
+  color: #0ea5e9;
+  text-decoration: none;
+}
+.lmw-link:hover{ text-decoration: underline; }
+
+/* Responsivo pequeño */
+@media (max-width: 380px){
+  .lmw-container{ padding: 22px; }
+}

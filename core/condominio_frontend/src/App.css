@@ -1,0 +1,458 @@
+/* ===== Paleta ===== */
+:root{
+  --brand-900:#1F330B;
+  --brand-700:#2E4D17;
+  --brand-600:#3C6621;
+  --brand-500:#6AA84F;
+  --brand-300:#B7D593;
+  --brand-100:#EEF5E7;
+
+  --silver-700:#4B4F54;
+  --silver-500:#7F868C;
+  --silver-300:#C6CDD2;
+  --silver-100:#EEF2F5;
+
+  --bg:#F7FAF8;
+  --surface:#FFFFFF;
+  --text:#1F2937;
+  --muted:#6B7280;
+
+  --ring:rgba(106,168,79,.35);
+  --radius-lg:16px;
+  --radius-md:12px;
+  --shadow:0 10px 30px rgba(0,0,0,.08);
+}
+
+/* ===== Reset ligero de body ===== */
+body{
+  color:var(--text);
+  background:
+    radial-gradient(1000px 600px at 15% 10%, var(--brand-100) 0%, transparent 35%),
+    radial-gradient(900px 500px at 85% 90%, #eaf2ff 0%, transparent 30%),
+    var(--bg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans',
+               'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';
+}
+
+/* ===== Shell con sidebar izquierda ===== */
+.layout-grid{
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:280px 1fr;
+}
+
+/* Sidebar */
+.sidebar{
+  background:var(--brand-100);
+  border-right:1px solid var(--silver-100);
+  padding:14px;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  position:sticky; top:0; height:100vh;
+}
+
+.brand{
+  display:grid; grid-template-columns:42px 1fr; gap:10px; align-items:center;
+  text-decoration:none;
+}
+.brand-mark{ width:42px; height:42px; object-fit:contain; filter:drop-shadow(0 4px 8px rgba(0,0,0,.12)); }
+.brand-text strong{ color:var(--brand-700); font-size:18px; line-height:1; }
+.brand-text span{ color:var(--silver-700); font-size:12px; line-height:1; opacity:.9; }
+
+.side-nav{ display:grid; gap:6px; margin-top:12px; }
+.s-navlink{
+  display:grid; grid-auto-flow:column; grid-auto-columns:max-content; gap:10px; align-items:center;
+  padding:10px 12px; border-radius:12px; color:var(--silver-700); text-decoration:none;
+}
+.s-navlink:hover{ background:var(--silver-100); color:var(--brand-700); }
+.s-navlink.active{
+  color:var(--brand-700);
+  background:linear-gradient(180deg, #fff, #f6faf5);
+  border:1px solid #e7efe4;
+  box-shadow:0 0 0 3px var(--brand-100) inset;
+}
+
+.sidebar-footer{ margin-top:16px; border-top:1px solid var(--silver-100); padding-top:12px; display:grid; gap:10px; }
+.whoami{ display:grid; grid-template-columns:36px 1fr; gap:10px; align-items:center; }
+.avatar{
+  width:36px; height:36px; border-radius:999px; display:grid; place-items:center;
+  background:var(--brand-300); color:var(--brand-900); font-weight:800;
+}
+.role{ font-size:12px; color:var(--muted); }
+
+/* Área de contenido */
+.content{ background:var(--bg); min-height:100vh; }
+.topbar{
+  position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between;
+  padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--silver-100);
+  box-shadow:0 4px 16px rgba(0,0,0,.04);
+}
+.app-title{ color:var(--brand-700); font-weight:800; }
+.app-main{ padding:24px; }
+.container{ width:100%; max-width:1200px; margin:0 auto; }
+
+/* Controles base */
+input, select, textarea, button{ font: inherit; }
+input, select, textarea{
+  width:100%; background:#fff; border:1.5px solid #e5e8eb; border-radius:10px; padding:10px 12px; color:var(--text);
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+input::placeholder, textarea::placeholder{ color:#9aa3aa; }
+input:focus, select:focus, textarea:focus{ outline:0; border-color:var(--brand-500); box-shadow:0 0 0 4px var(--ring); }
+button{
+  appearance:none; border:0; border-radius:12px; padding:10px 14px; font-weight:700; color:#fff;
+  background:linear-gradient(180deg, var(--brand-500), var(--brand-700));
+  box-shadow:0 10px 16px rgba(46,77,23,.18); cursor:pointer;
+  transition: transform .06s ease, filter .15s ease;
+}
+button:hover{ filter:brightness(1.05); }
+button:active{ transform:translateY(1px); }
+
+/* Tarjetas / tablas */
+.card{ background:var(--surface); border:1px solid var(--silver-100); border-radius:var(--radius-lg); box-shadow:var(--shadow); padding:16px; }
+.table{ width:100%; border-collapse:collapse; background:var(--surface); }
+.table thead th{
+  text-align:left; background:linear-gradient(0deg, var(--brand-100), #fff); color:var(--silver-700);
+  border-bottom:1px solid #e8efe6; padding:12px;
+}
+.table td{ border-bottom:1px solid #eef1f3; padding:12px; }
+
+/* Badges */
+.badge{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700; }
+.badge.success{ color:#065f46; background:#d1fae5; }
+.badge.warn{ color:#92400e; background:#fef3c7; }
+.badge.gray{ color:#374151; background:#e5e7eb; }
+
+/* Users page */
+.page-title{ margin:0 0 6px; font-size:clamp(28px,4vw,36px); }
+.page-sub{ margin:0 0 16px; color:var(--muted); }
+.toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.toolbar .grow{ flex:1 1 320px; }
+.btn-outline{
+  background:#fff; color:var(--brand-700); border:1px solid #e7efe4;
+}
+.count-chip{ display:inline-grid; grid-auto-flow:column; gap:6px; align-items:center; padding:8px 10px;
+  border-radius:12px; background:#f6faf5; border:1px solid #e7efe4; color:var(--silver-700); }
+
+  /* ... (todo tu CSS existente) ... */
+
+/* --- 👇 AÑADE ESTOS ESTILOS AL FINAL --- */
+
+.quick-action-link {
+  text-align: left;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  padding: 12px;
+  border-radius: 14px;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.quick-action-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+}
+
+.quick-action-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-size: 20px;
+  font-weight: 700;
+}
+.activity-item {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--silver-100);
+  border-radius: 12px;
+  background: #fff;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.activity-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.skeleton {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: #e5e7eb;
+  border-radius: 12px;
+}
+.skeleton-text {
+    height: 1.25rem;
+    width: 80%;
+}
+.skeleton-title {
+    height: 2rem;
+    width: 50%;
+    margin-bottom: 1rem;
+}
+/* ... (todos tus estilos existentes) ... */
+
+/* --- Estilos para el Menú de Perfil Desplegable --- */
+.sidebar-footer {
+  position: relative; /* Necesario para posicionar el menú */
+}
+
+.profile-trigger {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px;
+  border-radius: 12px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-trigger:hover {
+  background-color: var(--silver-100);
+}
+
+.profile-trigger-arrow {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.profile-menu {
+  position: absolute;
+  bottom: 105%; /* Posiciona el menú justo encima del botón */
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--silver-300);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 8px;
+  z-index: 10;
+  display: grid;
+  gap: 4px;
+}
+
+.profile-menu-item {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.profile-menu-item:hover {
+  background-color: var(--silver-100);
+}
+
+.profile-menu-separator {
+  height: 1px;
+  background-color: var(--silver-100);
+  margin: 4px 0;
+}
+
+/* El botón de logout dentro del menú necesita ajustes */
+.profile-menu button {
+  width: 100%;
+  box-shadow: none; /* Quita la sombra para un look más limpio dentro del menú */
+  font-weight: 500;
+  background: var(--silver-700);
+}
+
+.profile-menu button:hover {
+  background: var(--silver-500);
+}
+/* Estilos para las tarjetas de "Mi Cuenta" */
+.my-account-card {
+    padding: 20px;
+    border: 1px solid var(--silver-200);
+    border-radius: 14px; /* Un poco más redondeado para modernidad */
+    background-color: #fff;
+    box-shadow: var(--shadow); /* Usamos la variable de sombra global */
+    display: grid; /* Para que los elementos internos también se organicen mejor */
+}
+
+.my-account-card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--text);
+    font-size: 1.3em;
+}
+
+.my-account-card h4 {
+    margin-top: 20px;
+    margin-bottom: 8px;
+    color: var(--text);
+    font-size: 1.1em;
+}
+
+/* Estilos para la disposición en columnas de los formularios */
+.form-columns {
+    margin-top: 24px; /* Espacio superior para separar de la sección anterior */
+    display: grid;
+    gap: 24px; /* Espacio entre las columnas */
+    grid-template-columns: 1fr; /* Por defecto, una sola columna para móviles */
+}
+
+/* Media query para pantallas más grandes: 2 columnas */
+@media (min-width: 768px) { /* A partir de 768px de ancho, las columnas */
+    .form-columns {
+        grid-template-columns: 1fr 1fr; /* Dos columnas de igual ancho */
+    }
+}
+
+/* Ajustes para inputs y selects dentro de los formularios */
+.my-account-card input[type="text"],
+.my-account-card input[type="password"],
+.my-account-card select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--silver-300);
+    border-radius: 8px;
+    margin-top: 4px; /* Espacio entre el label y el input */
+    font-size: 1em;
+}
+
+.my-account-card label {
+    font-weight: 500;
+    color: var(--text-light);
+    font-size: 0.95em;
+}
+/* --- Estilos para la Campana de Notificaciones --- */
+.notification-bell-container {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-bell-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    position: relative;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+.notification-dot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    background-color: #dc2626; /* Rojo */
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.notification-panel {
+    position: absolute;
+    top: 130%;
+    right: 0;
+    width: 350px;
+    max-height: 400px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--silver-300);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+}
+
+.notification-panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--silver-100);
+}
+
+.notification-panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.notification-list {
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.notification-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--silver-100);
+    text-decoration: none;
+    color: var(--text);
+    transition: background-color 0.15s ease;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-message {
+    font-size: 14px;
+    line-height: 1.4;
+    margin-right: 16px;
+}
+
+.notification-time {
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.notification-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+}
+/* En src/App.css */
+.activity-item-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  border-radius: 12px;
+}
+
+.activity-item-link:hover .activity-item {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+}
+
+.remove-file-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
